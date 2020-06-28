@@ -4,7 +4,7 @@
 cmake_minimum_required (VERSION 3.8)
 
 # Add source to this project's executable.
-add_executable (raytracer "raytracer.cpp" "raytracer.h")
+add_executable (raytracer "raytracer.cpp" "raytracer.h" "math.h" "main.cpp" "main.h" "world.cpp" "world.h" "primitives.cpp" "primitives.h" "math.cpp" )
 
 # TODO: Add tests and install targets if needed.
 

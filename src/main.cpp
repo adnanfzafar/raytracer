@@ -1,13 +1,9 @@
-﻿// raytracer.cpp : Defines the entry point for the application.
+// main.cpp : Defines the entry point for the application.
 //
 
-#include "raytracer.h"
-
-//#undef main 
+#include "main.h"
 
 using namespace std;
-
-//#include "main.h"
 
 SDL_Window* window;
 SDL_Renderer* renderer;
@@ -16,11 +12,20 @@ SDL_Texture* buffer;
 uint32_t* pixels;
 int pitch;
 
+float* depthBuffer;
+
+RayTracer* rayTracer;
+static vec3_t eye = { 0,0,1 };
+static vec3_t up = { 0,1,0 };
+static vec3_t eye_origin = { 0,0,0 };
+static float fov = 90;
+
 bool init_resources(SDL_Window* window) {
 	/* FILLED IN LATER */
 	renderer = NULL;
 	buffer = NULL;
 	pixels = NULL;
+	rayTracer = NULL;
 
 	if (!window)
 		return false;
@@ -31,15 +36,35 @@ bool init_resources(SDL_Window* window) {
 
 	//pixels = new int(SCREEN_WIDTH * SCREEN_HEIGHT * 4);
 
-	if (buffer)
-		return true;
+	if (!buffer)
+		return false;
 
 	//delete[] pixels;
 
-	return false;
+	// setup the raytracer
+	rayTracer = new RayTracer(eye, up, eye_origin, fov);
+	if (!rayTracer)
+		return false;
+
+	// setup the scene
+	vec3_t sphere_origin = { 0, 0, 200 };
+	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(40, sphere_origin));
+	sphere_origin[0] = 35;
+	sphere_origin[1] = -35;
+	sphere_origin[2] = 180;
+	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(30, sphere_origin));
+
+	// set up the depth buffer
+	depthBuffer = new float[SCREEN_HEIGHT * SCREEN_WIDTH];
+
+	return true;
 }
 
+
+
 void render(SDL_Window* window) {
+	static int pixel_index;
+	static long ticks = 0;
 	/* FILLED IN LATER */
 	if (0 != SDL_LockTexture(buffer, NULL, (void**)&pixels, &pitch))
 	{
@@ -48,17 +73,30 @@ void render(SDL_Window* window) {
 		return;
 	}
 
-	int pixel_index = 0;
+	pixel_index = 0;
 	// RENDER TO PIXELS
-	for (int y = 0; y < SCREEN_HEIGHT; y++)
+	
+	/*
+	for (y = 0; y < SCREEN_HEIGHT; y++)
 	{
-		for (int x = 0; x < SCREEN_WIDTH; x++)
+		pixel_index = SCREEN_HEIGHT * y;
+		for (x = 0; x < SCREEN_WIDTH; x++)
 		{
-			pixel_index = SCREEN_HEIGHT * y + x;
+			//pixel_index = SCREEN_HEIGHT * y + x;
 
-			pixels[pixel_index] = 127 << 8;
-			pixels[pixel_index] |= 127 << 16;
-			pixels[pixel_index] |= 127 << 24;
+			//pixels[pixel_index] = 127 << 8;
+			//pixels[pixel_index] |= 127 << 16;
+			//pixels[pixel_index] |= 127 << 24;
+			pixels[pixel_index + x] = 2139062016;
+		}
+	}
+	*/
+
+	if (rayTracer) {
+		rayTracer->getWorld()->update(ticks);
+
+		if (rayTracer->rayTraceDepthSceneToPixelBuffer(&pixels, &depthBuffer, SCREEN_WIDTH, SCREEN_HEIGHT)) {
+			return;
 		}
 	}
 
@@ -129,13 +167,4 @@ int WinMain(
 ) {
 	return main(0, NULL);
 }
-*/
-
-/*
-int main()
-{
-	cout << "Hello CMake." << endl;
-	return 0;
-}
-
 */
