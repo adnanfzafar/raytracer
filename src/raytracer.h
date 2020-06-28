@@ -127,10 +127,10 @@ public:
 						eyeToPoint[2] = point[2] - origin[2];
 						depth = vectorMagnitude(&eyeToPoint);
 						// if depth <= depth_buffer[x,y] then color_buffer[x,y] = intensity
-						if (depth < (*depth_buffer)[j * window_height + i] || (*depth_buffer)[j * window_height + i] == 0)
+						if (depth < (*depth_buffer)[j * window_width + i] || (*depth_buffer)[j * window_width + i] == 0)
 						{
 							// store the depth and later illuminate the image based on depth (temporary)
-							(*depth_buffer)[j * window_height + i] = depth;
+							(*depth_buffer)[j * window_width + i] = depth;
 							
 						}
 
