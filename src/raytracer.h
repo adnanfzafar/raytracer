@@ -81,13 +81,12 @@ public:
 		// initialize the depth buffer to large positive values
 		memset(*depth_buffer, 0, sizeof(float) * window_width * window_height);
 
-		vec3_t ray;
-		vec3_t ray_corner, delta_right, delta_down, delta_w, delta_h;
+		
+		vec3_t ray_corner, delta_down, delta_w, delta_h;
 		vec3_t down;
 		memcpy(&down, &up, sizeof(vec3_t));
 		scaleVector(&up, -1);
-		vec3_t point;
-		vec3_t eyeToPoint;
+		
 		float depth, max_depth, min_depth;
 		min_depth = 99999;
 		max_depth = 0;
@@ -95,18 +94,28 @@ public:
 		if (getCornerAndDeltaRaysForCasting(window_width, window_height, fov, &ray_corner, &delta_w, &delta_h))
 			return 1;
 
-		if (vectorClear(&delta_right) || vectorClear(&delta_down))
-			return 1;
-
 		// for all pixels in the window,
 		for (int j = 0; j < window_height; j++)
 		{
+			// determine the vertical component of the initial ray across the projection plane
+			if (vectorScale(&delta_h, j * 1.0f, &delta_down))
+				break;
 
+#pragma omp parallel for
 			for (int i = 0; i < window_width; i++)
 			{
+				vec3_t ray;
+				vec3_t point;
+				vec3_t eyeToPoint;
+				vec3_t delta_right;
+
+				// determine the horizontal component of the initial ray across the projection plane
+				if (vectorScale(&delta_w, i*1.0f, &delta_right))
+					continue;
+
 				// add the corner to the accumulated right and down endpoints across the projection plane to determine the point p on the projection plane and then the ray
 				if (vectorAdd(&delta_right, &delta_down, &ray) || vectorAdd(&ray, &ray_corner, &ray) || normalize(&ray))// || vectorSubtract(&ray, &origin, &ray))
-					return 1;
+					continue;
 		
 				// TODO: transform the ray by the camera orientation
 
@@ -115,7 +124,7 @@ public:
 				// for all primitives in the scene, 
 				for (auto primitive : *(world->getPrimitives())) 
 				{
-					memset(&point, 0, sizeof(vec3_t));
+					//memset(&point, 0, sizeof(vec3_t));
 					
 					// get intersection point for ray and primitive
 					if (0 == primitive->intersect(&origin, &ray, &point)) 
@@ -134,30 +143,30 @@ public:
 							
 						}
 
-						// store the depth extends to scale the pixel colors based on % depth
-						if (depth < min_depth)
-							min_depth = depth;
-						if (depth > max_depth)
-							max_depth = depth;
-
 					}
 					
 				}
 
-				// stride the ray by a delta vector across the width of the projection plane
-				if (vectorAdd(&delta_right, &delta_w, &delta_right))
-					break;
 			}
 
-			// stride the ray by a delta vector across the height of the projection plane
-			if (vectorAdd(&delta_down, &delta_h, &delta_down))
-				break;
-
-			// clear the right striding vector to start the next scan across the width of the projection plane
-			if (vectorClear(&delta_right))
-				return 1;
 		}
 
+		// traverse depth buffer and determine min and max depth (temporary)
+		for (int j = 0; j < window_height; j++)
+		{
+			for (int i = 0; i < window_width; i++)
+			{
+				if ((*depth_buffer)[j * window_height + i] != 0)
+				{
+					// store the depth extends to scale the pixel colors based on % depth
+					if ((*depth_buffer)[j * window_height + i] < min_depth)
+						min_depth = (*depth_buffer)[j * window_height + i];
+					if ((*depth_buffer)[j * window_height + i] > max_depth)
+						max_depth = (*depth_buffer)[j * window_height + i];
+				}
+			}
+		}
+		
 		// traverse depth buffer and determine % depth values to assign as pixel values (temporary)
 		for (int j = 0; j < window_height; j++)
 		{
