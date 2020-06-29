@@ -36,7 +36,7 @@ public:
 		if (isEmpty())
 			return 1;
 
-		*(primitives->at(0)->getOrigin())[0] = 30 * sin(ticks++ / 100.0f);
+		*(primitives->at(0)->getOrigin())[0] = 30 * sin(ticks++ / 100);
 
 		return 0;
 		

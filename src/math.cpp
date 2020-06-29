@@ -47,14 +47,6 @@ int vectorSubtract(const vec3_t* a, const vec3_t* b, vec3_t* c) {
 	(*c)[1] = (*a)[1] - (*b)[1];
 	(*c)[2] = (*a)[2] - (*b)[2];
 
-	/*
-	__m128 ra, rb, rc;
-	ra = _mm_loadu_ps((float*)a);
-	rb = _mm_loadu_ps((float*)b);
-	rc = _mm_sub_ps(ra, rb);
-	_mm_storeu_ps((float*)c, rc);
-	*/
-
 	return 0;
 }
 
@@ -66,27 +58,6 @@ int vectorAdd(const vec3_t* a, const vec3_t* b, vec3_t* c) {
 	(*c)[0] = (*a)[0] + (*b)[0];
 	(*c)[1] = (*a)[1] + (*b)[1];
 	(*c)[2] = (*a)[2] + (*b)[2];
-	
-	/*
-	__m128 ra, rb, rc;
-	ra = _mm_loadu_ps((float*)a);
-	rb = _mm_loadu_ps((float*)b);
-	rc = _mm_add_ps(ra, rb);
-	_mm_storeu_ps((float*)c, rc);
-	*/
-
-	return 0;
-}
-
-
-int vectorScale(const vec3_t* a, const float k, vec3_t* b)
-{
-	if (!a || !b)
-		return 1;
-
-	(*b)[0] = (*a)[0] * k;
-	(*b)[1] = (*a)[1] * k;
-	(*b)[2] = (*a)[2] * k;
 
 	return 0;
 }

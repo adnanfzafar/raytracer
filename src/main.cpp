@@ -65,8 +65,6 @@ bool init_resources(SDL_Window* window) {
 void render(SDL_Window* window) {
 	static int pixel_index;
 	static long ticks = 0;
-	static Uint64 time_prev, time_now;
-	static int frame_count = 0;
 	/* FILLED IN LATER */
 	if (0 != SDL_LockTexture(buffer, NULL, (void**)&pixels, &pitch))
 	{
@@ -95,14 +93,6 @@ void render(SDL_Window* window) {
 	*/
 
 	if (rayTracer) {
-		(++frame_count) %= 100;
-		if (frame_count == 0)
-		{
-			time_prev = time_now;
-			time_now = SDL_GetPerformanceCounter();
-			SDL_Log("Avg frame time = %f ms (%f fps)", (double)((time_now - time_prev)*1000) / (100*SDL_GetPerformanceFrequency()), (double)(100 * SDL_GetPerformanceFrequency())/ ((time_now - time_prev)));
-		}
-
 		rayTracer->getWorld()->update(ticks);
 
 		if (rayTracer->rayTraceDepthSceneToPixelBuffer(&pixels, &depthBuffer, SCREEN_WIDTH, SCREEN_HEIGHT)) {
