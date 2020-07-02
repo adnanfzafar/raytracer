@@ -15,13 +15,17 @@ int pitch;
 float* depthBuffer;
 
 RayTracer* rayTracer;
+CPUId cpuid;
+/*
 static vec3_t eye = { 0,0,1 };
 static vec3_t up = { 0,1,0 };
-static vec3_t eye_origin = { 0,0,0 };
+static vec3_t eye_origin = { 0,0,-150 };
+*/
 static float fov = 90;
 
 bool init_resources(SDL_Window* window) {
 	/* FILLED IN LATER */
+
 	renderer = NULL;
 	buffer = NULL;
 	pixels = NULL;
@@ -30,29 +34,48 @@ bool init_resources(SDL_Window* window) {
 	if (!window)
 		return false;
 
+	// check CPU for SSE and SSE3
+	if (!cpuid.SSE || !cpuid.SSE3)
+	{
+		std::cout << "ERROR: CPU does not support required features SSE and SSE3!" << std::endl;
+		return false;
+	}
+
 	renderer = SDL_CreateRenderer(window, -1, 0);
 	if (renderer)
 		buffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-	//pixels = new int(SCREEN_WIDTH * SCREEN_HEIGHT * 4);
-
 	if (!buffer)
 		return false;
 
-	//delete[] pixels;
-
-	// setup the raytracer
-	rayTracer = new RayTracer(eye, up, eye_origin, fov);
+	// setup the raytracer (eye, up, eye_origin, fov)
+	//rayTracer = new RayTracer(Vector4f(0,0,1,0), Vector4f(0,1,0,0), Vector4f(0,0,-150,1), fov); // for sphere spiral
+	rayTracer = new RayTracer(Vector4f(0,0,1,0), Vector4f(0,1,0,0), Vector4f(0,0,0,1), fov); // for two spheres
 	if (!rayTracer)
 		return false;
 
 	// setup the scene
-	vec3_t sphere_origin = { 0, 0, 200 };
-	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(40, sphere_origin));
-	sphere_origin[0] = 35;
-	sphere_origin[1] = -35;
-	sphere_origin[2] = 180;
-	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(30, sphere_origin));
+	// sphere spiral
+	/*
+	Vector4f sphere_origin(0, 0, 0, 1);
+	float* f = sphere_origin.get();
+	float theta = 0;
+	for (int i = 0; i < 16; i++, theta += CONST_PI/8.0)
+	{
+		f[0] = i*5;
+		f[1] = 50 * sin(theta);
+		f[2] = 50 * cos(theta);
+		rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(10, &sphere_origin));
+	}
+	*/
+
+	Vector4f sphere_origin(0, 0, 200, 1);
+	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(40, &sphere_origin));
+	float* f = sphere_origin.get();
+	f[0] = 35;
+	f[1] = -35;
+	f[2] = 180;
+	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(30, &sphere_origin));
 
 	// set up the depth buffer
 	depthBuffer = new float[SCREEN_HEIGHT * SCREEN_WIDTH];

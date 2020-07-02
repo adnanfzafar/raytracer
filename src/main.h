@@ -13,12 +13,15 @@ using namespace std;
 #define SDL_MAIN_HANDLED // this disabled SDLs need to redefine main
 #include <SDL2/SDL.h>
 
+#include <intrin.h> // check CPU for ISA features via __cpuid(...)
+
+#include "hardware.h"
 #include "math.h"
 #include "primitives.h"
 #include "world.h"
 #include "raytracer.h"
 
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 512
+#define SCREEN_HEIGHT 384
 #define BYTES_PER_PIXEL 3
 #define BYTES_PER_ROW SCREEN_WIDTH*BYTES_PER_PIXEL

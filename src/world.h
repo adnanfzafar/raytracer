@@ -3,12 +3,14 @@
 #include <vector>
 #include "primitives.h"
 
+
 typedef struct {
-	vec3_t point;
-	vec3_t normal;
+	Vector4f point;
+	Vector4f normal;
 	float t;
 	// TODO: surface properties
 } hit_list_t;
+
 
 class World {
 protected:
@@ -36,7 +38,7 @@ public:
 		if (isEmpty())
 			return 1;
 
-		*(primitives->at(0)->getOrigin())[0] = 30 * sin(ticks++ / 100.0f);
+		primitives->at(0)->getOrigin()->get()[0] = 30 * sin(ticks++ / 100.0f);
 
 		return 0;
 		
