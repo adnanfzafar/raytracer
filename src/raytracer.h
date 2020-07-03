@@ -4,51 +4,21 @@
 #include "math.h"
 #include "primitives.h"
 #include "world.h"
+#include "camera.h"
 
 class RayTracer {
 protected:
 	World* world;
-
-	Vector4f *eye;
-	Vector4f *up;
-	Vector4f *right;
-	Vector4f *origin;
-
-	Matrix16f *viewMatrix;
 	
-	float fov;
-
-	int toggle;
-
 public:
-	
 
-	RayTracer(const Vector4f &new_eye, const Vector4f &new_up, const Vector4f &new_origin, const float new_fov) 
+	RayTracer() 
 	{
 		world = new World();
-		eye = new Vector4f(new_eye);
-		up = new Vector4f(new_up);
-		right = eye->crossProduct3f(up);
-		origin = new Vector4f(new_origin);
-		fov = new_fov;
-
-		Vector4f v(0, 0, 0, 1);
-		viewMatrix = new Matrix16f();
-		viewMatrix->setCol(0, right);
-		viewMatrix->setCol(1, up);
-		viewMatrix->setCol(2, eye);
-		viewMatrix->setCol(3, &v);
-
-		toggle = 0;
 	}
 
 	~RayTracer() {
 		delete world;
-		delete eye;
-		delete up;
-		delete right;
-		delete origin;
-		delete viewMatrix;
 	}
 
 	World* getWorld() { return world; }
@@ -76,10 +46,10 @@ public:
 
 
 
-	int rayTraceDepthSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth_buffer, const int window_width, const int window_height) {
+	int rayTraceDepthSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth_buffer, const int window_width, const int window_height, Camera *camera) {
 
 
-		if (!pixel_buffer || !depth_buffer || !world || world->isEmpty() || (window_width <= 0) || (window_height <= 0)) {
+		if (!pixel_buffer || !depth_buffer || !world || world->isEmpty() || (window_width <= 0) || (window_height <= 0) || !camera) {
 			return 1;
 		}
 
@@ -91,14 +61,16 @@ public:
 
 
 		Vector4f ray_corner, delta_down, delta_w, delta_h;
-		Vector4f down(up);
-		down.multiply(-1);
-
+		Vector4f origin;
+		
 		float depth, max_depth, min_depth;
 		min_depth = 99999;
 		max_depth = 0;
 
-		if (getCornerAndDeltaRaysForCasting(window_width, window_height, fov, &ray_corner, &delta_w, &delta_h))
+		if (camera->getOrigin(&origin))
+			return 1;
+
+		if (getCornerAndDeltaRaysForCasting(window_width, window_height, camera->getFov(), &ray_corner, &delta_w, &delta_h))
 			return 1;
 
 		// for all pixels in the window,
@@ -111,7 +83,7 @@ public:
 #pragma omp parallel for
 			for (int i = 0; i < window_width; i++)
 			{
-				Vector4f ray, ray_rotated;
+				Vector4f ray;
 				Vector4f point;
 				Vector4f eyeToPoint;
 				Vector4f delta_right;
@@ -126,7 +98,7 @@ public:
 				ray.normalize3f();
 
 				// TODO: transform the ray by the camera orientation, but check why it is incorrect
-				if(ray_rotated.set(ray) || ray_rotated.preMultiply(viewMatrix->get()))
+				if(ray.preMultiply(camera->getViewMatrix()->get()))
 					continue;
 				
 				//std::cout << "ray(" << i << "," << j << ") = <" << ray[0] << "," << ray[1] << "," << ray[2] << ">" << std::endl;
@@ -136,13 +108,13 @@ public:
 				{
 
 					// get intersection point for ray and primitive
-					if (0 == primitive->intersect(origin, &ray_rotated, &point))
-					//if (0 == primitive->intersect(origin, &ray, &point))
+					//if (0 == primitive->intersect(origin, &ray_rotated, &point))
+					if (0 == primitive->intersect(&origin, &ray, &point))
 					{
 
 						// if intersection, get distance to point from camera and use as intensity
 						eyeToPoint.set(point);
-						eyeToPoint.subtract(origin);
+						eyeToPoint.subtract(&origin);
 						depth = eyeToPoint.magnitude();
 
 						// if depth <= depth_buffer[x,y] then color_buffer[x,y] = intensity

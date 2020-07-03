@@ -39,6 +39,8 @@ public:
 			return 1;
 
 		primitives->at(0)->getOrigin()->get()[0] = 30 * sin(ticks++ / 100.0f);
+		primitives->at(0)->getOrigin()->get()[1] = 30 * cos(ticks++ / 100.0f);
+		//primitives->at(0)->getOrigin()->get()[2] = 40 * cos(ticks++ / 150.0f);
 
 		return 0;
 		

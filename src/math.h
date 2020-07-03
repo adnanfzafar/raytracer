@@ -314,6 +314,16 @@ public:
 
 	float* get() { return &m[0]; }
 
+	int getCol(int col, Vector4f* v)
+	{
+		if (!v || col < 0 || col > 3)
+		{
+			return 1;
+		}
+
+		return v->set(m[col], m[col + 4], m[col + 8], m[col + 12]);
+	}
+
 	int set(float* f)
 	{
 		if (!f)

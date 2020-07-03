@@ -14,6 +14,7 @@ int pitch;
 
 float* depthBuffer;
 
+Camera* camera;
 RayTracer* rayTracer;
 CPUId cpuid;
 /*
@@ -29,6 +30,7 @@ bool init_resources(SDL_Window* window) {
 	renderer = NULL;
 	buffer = NULL;
 	pixels = NULL;
+	camera = NULL;
 	rayTracer = NULL;
 
 	if (!window)
@@ -49,8 +51,9 @@ bool init_resources(SDL_Window* window) {
 		return false;
 
 	// setup the raytracer (eye, up, eye_origin, fov)
+	camera = new Camera(Vector4f(0, 0, 1, 0), Vector4f(0, 1, 0, 0), Vector4f(0, 0, 0, 1), fov);
 	//rayTracer = new RayTracer(Vector4f(0,0,1,0), Vector4f(0,1,0,0), Vector4f(0,0,-150,1), fov); // for sphere spiral
-	rayTracer = new RayTracer(Vector4f(0,0,1,0), Vector4f(0,1,0,0), Vector4f(0,0,0,1), fov); // for two spheres
+	rayTracer = new RayTracer(); // for two spheres
 	if (!rayTracer)
 		return false;
 
@@ -117,7 +120,7 @@ void render(SDL_Window* window) {
 	}
 	*/
 
-	if (rayTracer) {
+	if (camera && rayTracer) {
 		(++frame_count) %= 100;
 		if (frame_count == 0)
 		{
@@ -128,7 +131,7 @@ void render(SDL_Window* window) {
 
 		rayTracer->getWorld()->update(ticks);
 
-		if (rayTracer->rayTraceDepthSceneToPixelBuffer(&pixels, &depthBuffer, SCREEN_WIDTH, SCREEN_HEIGHT)) {
+		if (rayTracer->rayTraceDepthSceneToPixelBuffer(&pixels, &depthBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, camera)) {
 			return;
 		}
 	}
@@ -144,6 +147,9 @@ void free_resources() {
 	SDL_DestroyTexture(buffer);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
+
+	delete camera;
+	delete rayTracer;
 }
 
 void mainLoop(SDL_Window* window) {

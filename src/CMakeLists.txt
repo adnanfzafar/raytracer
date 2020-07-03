@@ -16,7 +16,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} ${SSEx_CXX_FLAGS}")
 link_directories(${OpenMP_LIBRARY_DIR})
 
 # Add source to this project's executable.
-add_executable (raytracer "raytracer.cpp" "raytracer.h" "math.h" "main.cpp" "main.h" "world.cpp" "world.h" "primitives.cpp" "primitives.h" "math.cpp"  "hardware.h")
+add_executable (raytracer "raytracer.cpp" "raytracer.h" "math.h" "main.cpp" "main.h" "world.cpp" "world.h" "primitives.cpp" "primitives.h" "math.cpp"  "hardware.h"  "camera.h")
 
 # TODO: Add tests and install targets if needed.
 
