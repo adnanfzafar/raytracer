@@ -8,7 +8,6 @@
 
 #define CONST_PI 3.14159
 
-//class Matrix16f;
 
 
 class Vector4f {
@@ -247,6 +246,16 @@ public:
 		
 		return sum;
 		*/
+	}
+
+	float innerProduct3f(Vector4f* a)
+	{
+		if (!a)
+			return 0;
+
+		float* f = a->get();
+
+		return v[0] * f[0] + v[1] * f[1] + v[2] * f[2];
 	}
 
 	// c = v x b

@@ -72,13 +72,32 @@ bool init_resources(SDL_Window* window) {
 	}
 	*/
 
-	Vector4f sphere_origin(0, 0, 200, 1);
-	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(40, &sphere_origin));
-	float* f = sphere_origin.get();
+	// TODO: properly declare each instance of the sphere to match the Sphere constructors, including colors and material properties
+	Vector4f origin(0, 0, 200, 1);
+	material_s material;
+	Vector4f color(1.0, 0, 0, 1.0);
+	Vector4f specularColor(1.0, 1.0, 1.0, 1.0);
+	material.ka = 0.15;
+	material.kd = 0.7;
+	material.n = 200;
+	material.ks = 0.6;
+	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(40, &origin, &color, &specularColor, &material));
+	float* f = origin.get();
 	f[0] = 35;
 	f[1] = -35;
 	f[2] = 180;
-	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(30, &sphere_origin));
+	material.kd = 0.9;
+	material.n = 50;
+	material.ks = 0.2;
+	color.get()[0] = 0;
+	color.get()[1] = 0;
+	color.get()[2] = 1;
+	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(30, &origin, &color, &specularColor, &material));
+
+	// add lights to the scene
+	color.set(0.8);
+	origin.set(-100, 100, -100, 1);
+	rayTracer->getWorld()->getLights()->push_back(new PointLight(&origin, &color));
 
 	// set up the depth buffer
 	depthBuffer = new float[SCREEN_HEIGHT * SCREEN_WIDTH];
@@ -131,7 +150,7 @@ void render(SDL_Window* window) {
 
 		rayTracer->getWorld()->update(ticks);
 
-		if (rayTracer->rayTraceDepthSceneToPixelBuffer(&pixels, &depthBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, camera)) {
+		if (rayTracer->rayTraceSceneToPixelBuffer(&pixels, &depthBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, camera)) {
 			return;
 		}
 	}

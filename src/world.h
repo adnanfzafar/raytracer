@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "primitives.h"
+#include "light.h"
 
 
 typedef struct {
@@ -15,20 +16,28 @@ typedef struct {
 class World {
 protected:
 	std::vector<Primitive*>* primitives;
+	std::vector<Light*>* lights;
 
 public:
 	World() {
 		primitives = new std::vector<Primitive*>();
+		lights = new std::vector<Light*>();
 	}
 
 	~World() {
 		delete[] primitives;
+		delete[] lights;
 	}
 
 	std::vector<Primitive*>* getPrimitives() { return primitives; }
+	std::vector<Light*>* getLights() { return lights; }
 
 	bool isEmpty() {
 		return (primitives->size() == 0);
+	}
+
+	bool isLit() {
+		return (lights->size() == 0);
 	}
 
 	int update(long &ticks) {

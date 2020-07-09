@@ -21,7 +21,7 @@ using namespace std;
 #include "world.h"
 #include "raytracer.h"
 
-#define SCREEN_WIDTH 512
-#define SCREEN_HEIGHT 384
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
 #define BYTES_PER_PIXEL 3
 #define BYTES_PER_ROW SCREEN_WIDTH*BYTES_PER_PIXEL

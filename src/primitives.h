@@ -2,29 +2,43 @@
 
 #include <iostream>
 #include "math.h"
+#include "material.h"
+#include "hitrecord.h"
 
 class Primitive {
 protected:
 	Vector4f origin;
-
+	Vector4f diffuseColor;
+	Vector4f specularColor;
+	material_s material;
 public:
 
 
-	int setOrigin(Vector4f &o) {
-
+	int setOrigin(Vector4f &o) 
+	{
 		return (origin.set(o));
-
 	}
 
-	int setOrigin(Vector4f *o) {
-
+	int setOrigin(Vector4f *o) 
+	{
 		return (origin.set(o));
-
 	}
 
 	Vector4f* getOrigin() { return &origin; }
 
-	virtual int intersect(const Vector4f* ray_origin, const Vector4f* ray, Vector4f* intersection) = 0;
+	int setDiffuseColor(Vector4f &c) 
+	{
+		return (diffuseColor.set(c));
+	}
+	Vector4f* getDiffuseColor() { return &diffuseColor; }
+
+	int setSpecularColor(Vector4f& c)
+	{
+		return (specularColor.set(c));
+	}
+	Vector4f* getSpecularColor() { return &specularColor; }
+
+	virtual int intersect(const Vector4f* ray_origin, const Vector4f* ray, hit_record_s *hit_record) = 0;
 	virtual int getNormal(const Vector4f* point, Vector4f* normal) = 0;
 };
 
@@ -42,10 +56,12 @@ public:
 		return 0;
 	}
 
-	
-	Sphere(float r, const Vector4f *o) {
+	Sphere(float r, const Vector4f *o, Vector4f *newDiffuseColor, Vector4f* newSpecularColor, const material_s *newMaterial) {
 		setRadius(r);
 		setOrigin((Vector4f *)o);
+		setSpecularColor(*newSpecularColor);
+		setDiffuseColor(*newDiffuseColor);
+		memcpy(&material, newMaterial, sizeof(material_s));
 	}
 	~Sphere() {};
 
@@ -59,14 +75,19 @@ public:
 		if (normal->set((Vector4f*)point) || normal->subtract(&origin))
 			return 1;
 
-		normal->normalize();
+		normal->normalize3f();
 
 		return 0;
 	}
 
 	
 
-	int intersect(const Vector4f* ray_origin, const Vector4f* ray, Vector4f* intersection) {
+	int intersect(const Vector4f* ray_origin, const Vector4f* ray, hit_record_s *hit_record) {
+
+		//Vector4f intersection;
+		
+		if (!ray_origin || !ray || !hit_record)
+			return 1;
 
 		// Let s = origin - ray_origin
 		Vector4f s(origin);
@@ -95,7 +116,7 @@ public:
 		// else if d > r -> no intersection
 		if(d.magnitude3f() <= radius)
 		{
-			if (getClosestIntersection(ray_origin, ray, intersection))
+			if (getClosestIntersection(ray_origin, ray, &(hit_record->point)) || getNormal(&(hit_record->point), &(hit_record->normal)) || hit_record->diffuseColor.set(diffuseColor) || hit_record->specularColor.set(specularColor) || !(hit_record->material = &material))
 				return 1;
 
 			return 0;
