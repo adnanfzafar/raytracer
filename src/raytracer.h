@@ -276,12 +276,11 @@ public:
 									continue;
 
 								//I[channel] = ambient channel + f_att*Ip[color]*(kd*Od[color]*(Nhat dot Lhat) + ks*(Rhat dot Vhat) ^ n)
-								ndotl = hit_record.normal.innerProduct3f(&Lhat);
-								rdotv = Rhat.innerProduct3f(&Vhat);
+								ndotl = max(hit_record.normal.innerProduct3f(&Lhat),0);
+								rdotv = max(Rhat.innerProduct3f(&Vhat), 0);
 								specular_term = pow(rdotv, hit_record.material->n) * rdotv * hit_record.material->ks;
 								diffuse_term = hit_record.material->kd * ndotl;
 
-								// TODO: threshold R dot V to set intensity to 0
 								// TODO: optimize accumulation and channels
 								(*pixel_buffer)[j * window_width + i] += (int)(light->getColor()->get()[0] * (hit_record.diffuseColor.get()[0] * diffuse_term + specular_term) *255) << 8;
 								(*pixel_buffer)[j * window_width + i] += (int)(light->getColor()->get()[1] * (hit_record.diffuseColor.get()[1] * diffuse_term + specular_term) * 255) << 16;

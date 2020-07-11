@@ -191,12 +191,13 @@ public:
 		v[2] *= a;
 		v[3] *= a;
 		*/
-
+		
 		__m128 ra, rb, rc;
 		ra = _mm_load_ps1((float*)&a);
 		rb = _mm_loadu_ps((float*)&v);
 		rc = _mm_mul_ps(ra, rb);
 		_mm_storeu_ps((float*)&v, rc);
+		
 
 		return 0;
 	}

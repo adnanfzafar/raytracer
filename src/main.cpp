@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
 	SDL_SetMainReady();
 	/* SDL-related initialising functions */
 	SDL_Init(SDL_INIT_VIDEO);
-	window = SDL_CreateWindow("My First Ray Tracer",
+	window = SDL_CreateWindow("Ray Tracer",
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 		SCREEN_WIDTH, SCREEN_HEIGHT,
 		SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
