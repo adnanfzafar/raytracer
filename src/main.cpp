@@ -1,9 +1,35 @@
 // main.cpp : Defines the entry point for the application.
 //
 
-#include "main.h"
-
+/* Using standard C++ output libraries */
+#include <cstdlib>
+#include <iostream>
 using namespace std;
+
+
+#include <windows.h> 
+/* Use glew.h instead of gl.h to get all the GL prototypes declared */
+#include <GL/glew.h>
+/* Using SDL2 for the base window and OpenGL context init */
+#define SDL_MAIN_HANDLED // this disabled SDLs need to redefine main
+#include <SDL2/SDL.h>
+
+#include <intrin.h> // check CPU for ISA features via __cpuid(...)
+
+#include "CPUId.h"
+#include "Vector4f.h"
+#include "Primitive.h"
+#include "Sphere.h"
+#include "Light.h"
+#include "PointLight.h"
+#include "World.h"
+#include "RayTracer.h"
+
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
+#define BYTES_PER_PIXEL 3
+#define BYTES_PER_ROW SCREEN_WIDTH*BYTES_PER_PIXEL
+
 
 SDL_Window* window;
 SDL_Renderer* renderer;
