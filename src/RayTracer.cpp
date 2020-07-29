@@ -3,16 +3,21 @@
 RayTracer::RayTracer()
 {
 	world = new World();
+	eyeRays = new std::vector<Vector4f*>();
+	eyeRaysValid = false;
 }
 
 RayTracer::~RayTracer() {
 	delete world;
+
+	eyeRays->clear();
+	delete eyeRays;
+
+	eyeRaysValid = false;
 }
 
-World* RayTracer::getWorld() { return world; }
-
-
-int RayTracer::getCornerAndDeltaRaysForCasting(const int window_width, const int window_height, const float fov, Vector4f* cornerRay, Vector4f* deltaW, Vector4f* deltaH) {
+int RayTracer::getCornerAndDeltaRaysForCasting(const int window_width, const int window_height, const float fov, Vector4f* cornerRay, Vector4f* deltaW, Vector4f* deltaH)
+{
 	if ((window_width <= 0) || (window_height <= 0) || !cornerRay || !deltaW || !deltaW) {
 		return 1;
 	}
@@ -32,6 +37,58 @@ int RayTracer::getCornerAndDeltaRaysForCasting(const int window_width, const int
 	return 0;
 }
 
+
+int RayTracer::calculateEyeRays(const int window_width, const int window_height, Camera *camera)
+{
+	
+	if (!eyeRays || (window_width <= 0) || (window_height <= 0) || !camera || (camera->getFov() <= 0))
+		return 1;
+
+	eyeRays->clear();
+	eyeRaysValid = false;
+
+	Vector4f cornerRay, deltaW, deltaH, deltaDown, deltaRight;
+
+	if (getCornerAndDeltaRaysForCasting(window_width, window_height, camera->getFov(), &cornerRay, &deltaW, &deltaH))
+		return 1;
+
+	// for all pixels in the window,
+	for (int j = 0; j < window_height; j++)
+	{
+		// determine the vertical component of the initial ray across the projection plane
+		if (deltaDown.set(deltaH) || deltaDown.multiply(j * 1.0f))
+			break;
+
+//#pragma omp parallel for
+		for (int i = 0; i < window_width; i++)
+		{
+			Vector4f ray;
+			//Vector4f point;
+			//Vector4f eyeToPoint;
+			Vector4f delta_right;
+			hit_record_s hit_record;
+
+			// determine the horizontal component of the initial ray across the projection plane
+			if (delta_right.set(deltaW) || delta_right.multiply(i * 1.0f))
+				return 1;
+
+			// add the corner to the accumulated right and down endpoints across the projection plane to determine the point p on the projection plane and then the ray
+			if (ray.set(deltaDown) || ray.add(&delta_right) || ray.add(&cornerRay))
+				return 1;
+			ray.normalize3f();
+
+			// transform the ray by the camera orientation
+			if (ray.preMultiply(camera->getViewMatrix()->get()))
+				return 1;
+
+			eyeRays->push_back(new Vector4f(ray));
+		}
+	}
+
+	eyeRaysValid = true;
+
+	return 0;
+}
 
 int RayTracer::rayTraceDepthSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth_buffer, const int window_width, const int window_height, Camera* camera) {
 
@@ -175,8 +232,14 @@ int RayTracer::rayTraceSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth
 	// initialize the depth buffer to large positive values
 	memset(*depth_buffer, 0, sizeof(float) * window_width * window_height);
 
-
-	Vector4f ray_corner, delta_down, delta_w, delta_h;
+	// calculate eye rays if they havent been determined already
+	if (eyeRaysValid == false)
+	{
+		if (calculateEyeRays(window_width, window_height, camera))
+		{
+			return 1;
+		}
+	}
 	Vector4f origin;
 
 	float depth, max_depth, min_depth;
@@ -186,47 +249,27 @@ int RayTracer::rayTraceSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth
 	if (camera->getOrigin(&origin))
 		return 1;
 
-	if (getCornerAndDeltaRaysForCasting(window_width, window_height, camera->getFov(), &ray_corner, &delta_w, &delta_h))
-		return 1;
-
+	
 	// for all pixels in the window,
 	for (int j = 0; j < window_height; j++)
 	{
-		// determine the vertical component of the initial ray across the projection plane
-		if (delta_down.set(delta_h) || delta_down.multiply(j * 1.0f))
-			break;
 
 #pragma omp parallel for
 		for (int i = 0; i < window_width; i++)
 		{
-			Vector4f ray;
-			//Vector4f point;
 			Vector4f eyeToPoint;
 			Vector4f delta_right;
 			hit_record_s hit_record;
 
-			// determine the horizontal component of the initial ray across the projection plane
-			if (delta_right.set(delta_w) || delta_right.multiply(i * 1.0f))
-				continue;
-
-			// add the corner to the accumulated right and down endpoints across the projection plane to determine the point p on the projection plane and then the ray
-			if (ray.set(delta_down) || ray.add(&delta_right) || ray.add(&ray_corner))
-				continue;
-			ray.normalize3f();
-
-			// TODO: transform the ray by the camera orientation, but check why it is incorrect
-			if (ray.preMultiply(camera->getViewMatrix()->get()))
-				continue;
-
-			//std::cout << "ray(" << i << "," << j << ") = <" << ray[0] << "," << ray[1] << "," << ray[2] << ">" << std::endl;
-
+			
 			// for all primitives in the scene, 
 			for (auto primitive : *(world->getPrimitives()))
 			{
 
 				// get intersection point for ray and primitive
 				//if (0 == primitive->intersect(origin, &ray_rotated, &point))
-				if (0 == primitive->intersect(&origin, &ray, &hit_record))
+				//if (0 == primitive->intersect(&origin, &ray, &hit_record))
+				if (0 == primitive->intersect(&origin, eyeRays->at(j*window_width + i), &hit_record))
 				{
 
 					// if intersection, get the depth of the ray / scene intersection

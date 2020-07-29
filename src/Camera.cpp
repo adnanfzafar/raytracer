@@ -32,6 +32,11 @@ Camera::Camera(const Vector4f& dir, const Vector4f& up, const Vector4f& origin, 
 	fov = new_fov;
 }
 
+Camera::~Camera()
+{
+	delete viewMatrix;
+}
+
 int Camera::setViewMatrix(Vector4f* dir, Vector4f* up, Vector4f* origin)
 {
 	if (!dir || !up || !origin || !viewMatrix)
@@ -89,3 +94,4 @@ int Camera::getOrigin(Vector4f* v)
 
 	return viewMatrix->getCol(3, v);
 }
+
