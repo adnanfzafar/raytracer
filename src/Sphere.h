@@ -5,6 +5,7 @@
 class Sphere : public Primitive {
 protected:
 	float radius;
+	float radius_squared;
 
 public:
 	int setRadius(float r);

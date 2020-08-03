@@ -16,6 +16,8 @@ using namespace std;
 
 #include <intrin.h> // check CPU for ISA features via __cpuid(...)
 
+#include <fstream>
+
 #include "CPUId.h"
 #include "Vector4f.h"
 #include "Primitive.h"
@@ -25,8 +27,8 @@ using namespace std;
 #include "World.h"
 #include "RayTracer.h"
 
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
 #define BYTES_PER_PIXEL 3
 #define BYTES_PER_ROW SCREEN_WIDTH*BYTES_PER_PIXEL
 
@@ -127,43 +129,82 @@ bool init_resources(SDL_Window* window) {
 
 	// set up the depth buffer
 	depthBuffer = new float[SCREEN_HEIGHT * SCREEN_WIDTH];
+	
+	//
+	//pixels = new uint32_t[SCREEN_HEIGHT * SCREEN_WIDTH];
 
 	return true;
 }
 
+// shader loading biolerplate taken from https://about-prog.com/opengl/ogl-triangle
+int init_opengl()
+{
+	float vertices[] = {
+		-0.5f, -0.5f, 0.0f, 1.0f,
+		 0.5f, -0.5f, 0.0f, 1.0f,
+		 0.0f,  0.5f, 0.0f, 1.0f
+	};
 
+	/* Extension wrangler initialising */
+	
+	GLenum glew_status = glewInit();
+	if (glew_status != GLEW_OK) {
+		cerr << "Error: glewInit: " << glewGetErrorString(glew_status) << endl;
+		return EXIT_FAILURE;
+	}
+
+	glClearColor(1.0,1.0,1.0,1.0);
+
+	GLuint vao;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+
+	GLuint vbo;
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	std::ifstream ivs("vs.glsl");
+	std::string vs((std::istreambuf_iterator<char>(ivs)), (std::istreambuf_iterator<char>()));
+	const char* vsc = vs.c_str();
+	std::ifstream ifs("fs.glsl");
+	std::string fs((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+	const char* fsc = fs.c_str();
+
+	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShader, 1, &vsc, NULL);
+	glCompileShader(vertexShader);
+
+	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader, 1, &fsc, NULL);
+	glCompileShader(fragmentShader);
+
+	GLuint shaderProgram = glCreateProgram();
+
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
+
+	glUseProgram(shaderProgram);
+
+	return 0;
+}
 
 void render(SDL_Window* window) {
-	static int pixel_index;
 	static long ticks = 0;
 	static Uint64 time_prev, time_now;
 	static int frame_count = 0;
 	/* FILLED IN LATER */
+	
 	if (0 != SDL_LockTexture(buffer, NULL, (void**)&pixels, &pitch))
 	{
 		cout << "ERROR: Failed to lock texture!" << endl;
 		SDL_UnlockTexture(buffer);
 		return;
 	}
-
-	pixel_index = 0;
-	// RENDER TO PIXELS
-	
-	/*
-	for (y = 0; y < SCREEN_HEIGHT; y++)
-	{
-		pixel_index = SCREEN_HEIGHT * y;
-		for (x = 0; x < SCREEN_WIDTH; x++)
-		{
-			//pixel_index = SCREEN_HEIGHT * y + x;
-
-			//pixels[pixel_index] = 127 << 8;
-			//pixels[pixel_index] |= 127 << 16;
-			//pixels[pixel_index] |= 127 << 24;
-			pixels[pixel_index + x] = 2139062016;
-		}
-	}
-	*/
 
 	if (camera && rayTracer) {
 		(++frame_count) %= 100;
@@ -181,10 +222,18 @@ void render(SDL_Window* window) {
 		}
 	}
 
+	
 	SDL_UnlockTexture(buffer);
-
+	
 	SDL_RenderCopy(renderer, buffer, NULL, NULL);
 	SDL_RenderPresent(renderer);
+	
+	/*
+	// prepare to use shaders for ray tracing
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+	SDL_GL_SwapWindow(window);
+	*/
 }
 
 void free_resources() {
@@ -218,14 +267,8 @@ int main(int argc, char* argv[]) {
 		SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
 	SDL_GL_CreateContext(window);
 
-	/* Extension wrangler initialising */
-	/*
-	GLenum glew_status = glewInit();
-	if (glew_status != GLEW_OK) {
-		cerr << "Error: glewInit: " << glewGetErrorString(glew_status) << endl;
-		return EXIT_FAILURE;
-	}
-	*/
+	// prepare to use shaders for ray tracing
+	//init_opengl();
 
 	/* When all init functions run without errors,
 	   the program can initialise the resources */

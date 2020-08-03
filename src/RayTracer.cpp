@@ -249,12 +249,10 @@ int RayTracer::rayTraceSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth
 	if (camera->getOrigin(&origin))
 		return 1;
 
-	
+#pragma omp parallel for
 	// for all pixels in the window,
 	for (int j = 0; j < window_height; j++)
-	{
-
-#pragma omp parallel for
+	{	
 		for (int i = 0; i < window_width; i++)
 		{
 			Vector4f eyeToPoint;
@@ -292,7 +290,7 @@ int RayTracer::rayTraceSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth
 							float ndotl, rdotv, specular_term, diffuse_term;
 							Vector4f Lhat, Rhat, Vhat;
 
-							// compute L hat unit vector in direciton from surface point to light
+							// compute L hat unit vector in direction from surface point to light
 							if (Lhat.set(light->getOrigin()) || Lhat.subtract(&(hit_record.point)))
 								continue;
 							Lhat.normalize3f();
