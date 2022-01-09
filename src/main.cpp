@@ -52,6 +52,28 @@ static vec3_t eye_origin = { 0,0,-150 };
 */
 static float fov = 90;
 
+// draw a single triangle that covers the full screen space and is clipped by the GPU
+// doing this instead of two triangles to draw a screen quad avoids the overdraw of running the fragment shader in 2x2 pixel groups across the hypotenuse of the triangles
+float vertices[] = {
+	-1.0f, -3.0f, 0.0f, 1.0f,
+	-1.0f, 1.0f, 0.0f, 1.0f,
+	3.0f, 1.0f, 0.0f, 1.0f
+};
+
+// declare the texture to which the compute shader will redner into
+GLuint tex_output;
+GLuint shaderProgram, computeProgram;
+
+sphere_s *sphereBuffer;
+int sphereBufferLen;
+light_s *lightBuffer;
+int lightBufferLen;
+vec4_t* primaryRayBuffer;
+int primaryRayBufferLen;
+
+
+GLuint ssboSpheres, ssboLights, ssboPrimaryRays;
+
 bool init_resources(SDL_Window* window) {
 	/* FILLED IN LATER */
 
@@ -109,7 +131,7 @@ bool init_resources(SDL_Window* window) {
 	material.kd = 0.7;
 	material.n = 200;
 	material.ks = 0.6;
-	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(40, &origin, &color, &specularColor, &material));
+	rayTracer->getWorld()->getSpheres()->push_back(new Sphere(40, &origin, &color, &specularColor, &material));
 	float* f = origin.get();
 	f[0] = 35;
 	f[1] = -35;
@@ -120,15 +142,26 @@ bool init_resources(SDL_Window* window) {
 	color.get()[0] = 0;
 	color.get()[1] = 0;
 	color.get()[2] = 1;
-	rayTracer->getWorld()->getPrimitives()->push_back(new Sphere(30, &origin, &color, &specularColor, &material));
+	rayTracer->getWorld()->getSpheres()->push_back(new Sphere(30, &origin, &color, &specularColor, &material));
+
+	sphereBufferLen = rayTracer->getWorld()->getSpheres()->size() * sizeof(sphere_s);
+	//sphereBuffer = (sphere_s*)malloc(sphereBufferLen);
 
 	// add lights to the scene
 	color.set(0.8);
 	origin.set(-100, 100, -100, 1);
 	rayTracer->getWorld()->getLights()->push_back(new PointLight(&origin, &color));
 
+	lightBufferLen = rayTracer->getWorld()->getLights()->size() * sizeof(light_s);
+	//lightBuffer = (light_s*)malloc(lightBufferLen);
+
 	// set up the depth buffer
 	depthBuffer = new float[SCREEN_HEIGHT * SCREEN_WIDTH];
+
+	// set up the primary ray buffer
+	primaryRayBufferLen = sizeof(vec4_t) * SCREEN_HEIGHT * SCREEN_WIDTH;
+	rayTracer->calculateEyeRays(SCREEN_WIDTH, SCREEN_HEIGHT, camera);
+	//primaryRayBuffer = (vec4_t*)malloc(primaryRayBufferLen);
 	
 	//
 	//pixels = new uint32_t[SCREEN_HEIGHT * SCREEN_WIDTH];
@@ -139,11 +172,7 @@ bool init_resources(SDL_Window* window) {
 // shader loading biolerplate taken from https://about-prog.com/opengl/ogl-triangle
 int init_opengl()
 {
-	float vertices[] = {
-		-0.5f, -0.5f, 0.0f, 1.0f,
-		 0.5f, -0.5f, 0.0f, 1.0f,
-		 0.0f,  0.5f, 0.0f, 1.0f
-	};
+	
 
 	/* Extension wrangler initialising */
 	
@@ -167,28 +196,117 @@ int init_opengl()
 	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
 
+	// generate the texture into which the compute shader will render
+	glGenTextures(1, &tex_output);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex_output);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+	glBindImageTexture(0, tex_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
 	std::ifstream ivs("vs.glsl");
 	std::string vs((std::istreambuf_iterator<char>(ivs)), (std::istreambuf_iterator<char>()));
 	const char* vsc = vs.c_str();
+	
 	std::ifstream ifs("fs.glsl");
 	std::string fs((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 	const char* fsc = fs.c_str();
-
+	
+	std::ifstream ics("raytrace.glsl");
+	std::string cs((std::istreambuf_iterator<char>(ics)), (std::istreambuf_iterator<char>()));
+	const char* csc = cs.c_str();
+	
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader, 1, &vsc, NULL);
 	glCompileShader(vertexShader);
-
+	
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShader, 1, &fsc, NULL);
 	glCompileShader(fragmentShader);
 
-	GLuint shaderProgram = glCreateProgram();
-
+	shaderProgram = glCreateProgram();
 	glAttachShader(shaderProgram, vertexShader);
 	glAttachShader(shaderProgram, fragmentShader);
 	glLinkProgram(shaderProgram);
+	//glUseProgram(shaderProgram);
 
-	glUseProgram(shaderProgram);
+	GLint isLinked = 0;
+	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &isLinked);
+	if (isLinked == GL_FALSE)
+	{
+		GLint maxLength = 0;
+		glGetProgramiv(shaderProgram, GL_INFO_LOG_LENGTH, &maxLength);
+
+		// The maxLength includes the NULL character
+		std::vector<GLchar> infoLog(maxLength);
+		glGetProgramInfoLog(shaderProgram, maxLength, &maxLength, &infoLog[0]);
+
+		// The program is useless now. So delete it.
+		glDeleteProgram(shaderProgram);
+
+		// Provide the infolog in whatever manner you deem best.
+		SDL_Log("ERROR linking fragment and vertex shader program: %s\n", infoLog.data());
+		// Exit with failure.
+		return 1;
+	}
+
+	GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+	glShaderSource(computeShader, 1, &csc, NULL);
+	glCompileShader(computeShader);
+
+	computeProgram = glCreateProgram();
+	glAttachShader(computeProgram, computeShader);
+	glLinkProgram(computeProgram);
+
+	isLinked = 0;
+	glGetProgramiv(computeProgram, GL_LINK_STATUS, &isLinked);
+	if (isLinked == GL_FALSE)
+	{
+		GLint maxLength = 0;
+		glGetProgramiv(computeProgram, GL_INFO_LOG_LENGTH, &maxLength);
+
+		// The maxLength includes the NULL character
+		std::vector<GLchar> infoLog(maxLength);
+		glGetProgramInfoLog(computeProgram, maxLength, &maxLength, &infoLog[0]);
+
+		// The program is useless now. So delete it.
+		glDeleteProgram(computeProgram);
+
+		// Provide the infolog in whatever manner you deem best.
+		SDL_Log("ERROR linking compute program: %s\n", infoLog.data());
+		// Exit with failure.
+		return 1;
+	}
+
+	// create the shader storage buffer object to send sphere data to the compute shader
+	glGenBuffers(1, &ssboSpheres);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboSpheres);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sphereBufferLen, sphereBuffer, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssboSpheres);
+	sphereBuffer = (sphere_s*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sphereBufferLen, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+	rayTracer->getWorld()->genSphereBuffer(sphereBuffer, rayTracer->getWorld()->getSpheres()->size() * sizeof(sphere_s));
+	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+	// create the shader storage buffer object to send light data to the compute shader
+	glGenBuffers(1, &ssboLights);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboLights);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, lightBufferLen, lightBuffer, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssboLights);
+	lightBuffer = (light_s *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, lightBufferLen, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+	rayTracer->getWorld()->genLightBuffer(lightBuffer, rayTracer->getWorld()->getLights()->size() * sizeof(light_s));
+	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+	// create the shader storage buffer object to send primary ray data to the compute shader
+	glGenBuffers(1, &ssboPrimaryRays);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboPrimaryRays);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, primaryRayBufferLen, primaryRayBuffer, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, ssboPrimaryRays);
+	primaryRayBuffer = (vec4_t *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, primaryRayBufferLen, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+	rayTracer->genEyeRaysBuffer(primaryRayBuffer, primaryRayBufferLen, SCREEN_WIDTH, SCREEN_HEIGHT);
+	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
 	return 0;
 }
@@ -217,24 +335,47 @@ void render(SDL_Window* window) {
 
 		rayTracer->getWorld()->update(ticks);
 
+#if 0		
 		if (rayTracer->rayTraceSceneToPixelBuffer(&pixels, &depthBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, camera)) {
 			return;
 		}
+#endif
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssboSpheres);
+		rayTracer->getWorld()->genSphereBuffer(sphereBuffer, rayTracer->getWorld()->getSpheres()->size() * sizeof(sphere_s));
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, rayTracer->getWorld()->getSpheres()->size() * sizeof(sphere_s), sphereBuffer);
+		//rayTracer->getWorld()->genLightBuffer(lightBuffer, rayTracer->getWorld()->getLights()->size() * sizeof(light_s));
+		//rayTracer->genEyeRaysBuffer(primaryRayBuffer, primaryRayBufferLen, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
 
 	
 	SDL_UnlockTexture(buffer);
-	
+#if 0
 	SDL_RenderCopy(renderer, buffer, NULL, NULL);
 	SDL_RenderPresent(renderer);
+#endif
 	
-	/*
 	// prepare to use shaders for ray tracing
+	glUseProgram(computeProgram);
+	glDispatchCompute((GLuint)SCREEN_WIDTH, (GLuint)SCREEN_HEIGHT, 1);
+
+	// wait to finish processing image before proceeding with read on the texture
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
 	glClear(GL_COLOR_BUFFER_BIT);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	
+	// render the triangle with the compute shader output as a texture
+	glUseProgram(shaderProgram);
+	glActiveTexture(GL_TEXTURE0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	glBindTexture(GL_TEXTURE_2D, tex_output);
+	glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices)/sizeof(float));
+
+	// double buffer present
 	SDL_GL_SwapWindow(window);
-	*/
+	
 }
+
 
 void free_resources() {
 	/* FILLED IN LATER */
@@ -244,6 +385,10 @@ void free_resources() {
 
 	delete camera;
 	delete rayTracer;
+
+	free(sphereBuffer);
+	free(lightBuffer);
+	free(primaryRayBuffer);
 }
 
 void mainLoop(SDL_Window* window) {
@@ -272,7 +417,7 @@ int main(int argc, char* argv[]) {
 
 	/* When all init functions run without errors,
 	   the program can initialise the resources */
-	if (!init_resources(window))
+	if (!init_resources(window) || init_opengl())
 		return EXIT_FAILURE;
 
 	/* We can display something if everything goes OK */

@@ -95,3 +95,19 @@ int Camera::getOrigin(Vector4f* v)
 	return viewMatrix->getCol(3, v);
 }
 
+int Camera::getData(void* dest, int len)
+{
+	if (!dest || len < sizeof(camera_s))
+	{
+		return 1;
+	}
+
+	camera_s* camera = (camera_s*)dest;
+
+	if (viewMatrix->getData(&(camera->view_matrix), sizeof(camera->view_matrix)))
+		return 1;
+
+	camera->fov = fov;
+
+	return 0;
+}

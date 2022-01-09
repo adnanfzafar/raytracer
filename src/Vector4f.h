@@ -8,6 +8,8 @@
 
 #define CONST_PI 3.14159
 
+typedef float vec4_t[4];
+
 class Vector4f {
 protected:
 	float v[4];

@@ -7,6 +7,8 @@
 #include <xmmintrin.h> // SSE
 #include <pmmintrin.h> // SSE3
 
+typedef float mat4_t[16]; // column major order storage of 4x4 matrices for glsl shaders
+
 class Matrix16f {
 protected:
 	float m[16];
@@ -27,4 +29,6 @@ public:
 	int preMultiply(Matrix16f* a);
 	//M' = M*A
 	int postMultiply(Matrix16f* a);
+
+	int getData(void* dest, int len);
 };

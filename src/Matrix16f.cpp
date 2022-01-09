@@ -165,3 +165,15 @@ int Matrix16f::postMultiply(Matrix16f* a)
 
 	return 0;
 }
+
+int Matrix16f::getData(void* dest, int len)
+{
+	if (!dest || len < sizeof(mat4_t))
+	{
+		return 1;
+	}
+
+	memcpy(dest, (const void *)&m, sizeof(mat4_t));
+
+	return 0;
+}

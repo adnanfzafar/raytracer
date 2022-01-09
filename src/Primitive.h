@@ -26,5 +26,7 @@ public:
 
 	virtual int intersect(const Vector4f* ray_origin, const Vector4f* ray, hit_record_s *hit_record) = 0;
 	virtual int getNormal(const Vector4f* point, Vector4f* normal) = 0;
+
+	virtual int getData(void* dest, int len) = 0;
 };
 

@@ -166,3 +166,19 @@ int Sphere::getClosestIntersection(const Vector4f* ray_origin, const Vector4f* r
 
 	return 0;
 }
+
+int Sphere::getData(void *dest, int len) {
+	if (!dest || (len < sizeof(sphere_s)))
+		return 1;
+
+	sphere_s* sphere = (sphere_s*)dest;
+
+	memcpy(&(sphere->origin), origin.get(), sizeof(vec4_t));
+	memcpy(&(sphere->diffuse_color), diffuseColor.get(), sizeof(vec4_t));
+	memcpy(&(sphere->specular_color), specularColor.get(), sizeof(vec4_t));
+	memcpy(&(sphere->material), &material, sizeof(material_s));
+	sphere->radius = radius;
+
+
+	return 0;
+}

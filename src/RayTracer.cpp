@@ -149,7 +149,7 @@ int RayTracer::rayTraceDepthSceneToPixelBuffer(uint32_t** pixel_buffer, float** 
 			//std::cout << "ray(" << i << "," << j << ") = <" << ray[0] << "," << ray[1] << "," << ray[2] << ">" << std::endl;
 
 			// for all primitives in the scene, 
-			for (auto primitive : *(world->getPrimitives()))
+			for (auto primitive : *(world->getSpheres()))
 			{
 
 				// get intersection point for ray and primitive
@@ -261,7 +261,7 @@ int RayTracer::rayTraceSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth
 
 			
 			// for all primitives in the scene, 
-			for (auto primitive : *(world->getPrimitives()))
+			for (auto primitive : *(world->getSpheres()))
 			{
 
 				// get intersection point for ray and primitive
@@ -332,6 +332,23 @@ int RayTracer::rayTraceSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth
 
 	//std::cout << "frame" << std::endl;
 
+
+	return 0;
+}
+
+int RayTracer::genEyeRaysBuffer(void* buffer, int len, const int buffer_width, const int buffer_height)
+{
+	if (!buffer || len < (sizeof(vec4_t) * buffer_width * buffer_height))
+	{
+		return 1;
+	}
+
+	vec4_t* eye_rays = (vec4_t*)buffer;
+
+	for (auto ray : *eyeRays)
+	{
+		memcpy(eye_rays++, ray->get(), sizeof(vec4_t));
+	}
 
 	return 0;
 }

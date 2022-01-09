@@ -88,7 +88,7 @@ float Vector4f::get(int index)
 }
 
 float* Vector4f::get() {
-	return &v[0];
+	return &(v[0]);
 }
 
 float Vector4f::magnitude3f()

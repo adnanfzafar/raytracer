@@ -31,4 +31,6 @@ public:
 	int rayTraceDepthSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth_buffer, const int window_width, const int window_height, Camera* camera);
 	int rayTraceSceneToPixelBuffer(uint32_t** pixel_buffer, float** depth_buffer, const int window_width, const int window_height, Camera* camera);
 	int rayTraceSceneToPixelBufferFast(uint32_t** pixel_buffer, float** depth_buffer, const int window_width, const int window_height, Camera* camera);
+
+	int genEyeRaysBuffer(void* buffer, int len, const int buffer_width, const int buffer_height);
 };

@@ -5,6 +5,12 @@
 #include "Vector4f.h"
 #include "Matrix16f.h"
 
+typedef struct {
+	mat4_t view_matrix;
+	float fov;
+	float padding[3];
+} camera_s;
+
 class Camera {
 protected:
 	float fov;
@@ -25,5 +31,6 @@ public:
 	int getUp(Vector4f* v);
 	int getEye(Vector4f* v);
 	int getOrigin(Vector4f* v);
-
+	
+	int getData(void* dest, int len);
 };
