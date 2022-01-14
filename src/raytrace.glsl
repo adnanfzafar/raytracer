@@ -62,6 +62,7 @@ void main()
     // trace against each sphere
     vec4 ray_origin = vec4(0.0, 0.0, 0.0, 1.0);
     uint index = pixel_coords.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x + pixel_coords.x;
+    float min_depth = 99990.0f;
     for(int i = 0; i < spheres.length(); i++) {
         vec4 omc = ray_origin - spheres[i].origin;
         float b = dot(primaryRays[index], omc);
@@ -103,6 +104,13 @@ void main()
             // if the ray originated outside the sphere, t = tca - sqrt(t2hc)
             else if(l2oc > rsquared) {
                 t = tca - sqrt(t2hc);
+            }
+
+            // depth buffer
+            if(t < min_depth) {
+                min_depth = t;
+            } else {
+                continue;
             }
             
             vec4 hit_point = ray_origin + primaryRays[index] * t;

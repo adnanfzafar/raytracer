@@ -34,6 +34,9 @@ int World::update(long& ticks) {
 	spheres->at(0)->getOrigin()->get()[1] = 30 * cos(ticks / 100.0f);
 	//spheres->at(0)->getOrigin()->get()[2] = 40 * cos(ticks++ / 150.0f);
 
+	lights->at(0)->getOrigin()->get()[1] = 1500 * sin(ticks / 75.0f);
+	lights->at(0)->getOrigin()->get()[2] = 1500 * cos(ticks / 75.0f);
+
 	return 0;
 
 }

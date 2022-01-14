@@ -129,10 +129,19 @@ bool init_resources(SDL_Window* window) {
 	Vector4f specularColor(1.0, 1.0, 1.0, 1.0);
 	material.ka = 0.15;
 	material.kd = 0.7;
-	material.n = 200;
+	material.n = 500;
 	material.ks = 0.6;
 	rayTracer->getWorld()->getSpheres()->push_back(new Sphere(40, &origin, &color, &specularColor, &material));
 	float* f = origin.get();
+	float theta = 0;
+	// create a vertial spiral of spheres in front of the camera
+	for (int i = 0; i < 50; i++, theta += CONST_PI / 8.0)
+	{
+		f[0] = 150 * sin(theta);
+		f[1] = i * 20;
+		f[2] = 1000 + 150 * cos(theta);
+		rayTracer->getWorld()->getSpheres()->push_back(new Sphere(20, &origin, &color, &specularColor, &material));
+	}
 	f[0] = 35;
 	f[1] = -35;
 	f[2] = 180;
@@ -284,8 +293,10 @@ int init_opengl()
 	// create the shader storage buffer object to send sphere data to the compute shader
 	glGenBuffers(1, &ssboSpheres);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboSpheres);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sphereBufferLen, sphereBuffer, GL_DYNAMIC_DRAW);
+	//glBufferData(GL_SHADER_STORAGE_BUFFER, sphereBufferLen, sphereBuffer, GL_DYNAMIC_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sphereBufferLen, sphereBuffer, GL_STREAM_DRAW);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssboSpheres);
+	//sphereBuffer = (sphere_s*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sphereBufferLen, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 	sphereBuffer = (sphere_s*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sphereBufferLen, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 	rayTracer->getWorld()->genSphereBuffer(sphereBuffer, rayTracer->getWorld()->getSpheres()->size() * sizeof(sphere_s));
 	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
@@ -325,6 +336,7 @@ void render(SDL_Window* window) {
 	}
 
 	if (camera && rayTracer) {
+		
 		(++frame_count) %= 100;
 		if (frame_count == 0)
 		{
@@ -340,11 +352,22 @@ void render(SDL_Window* window) {
 			return;
 		}
 #endif
-
+		
+		// update the sphere buffer
+		// wait for all compute units to finish operating on the buffer, then retrieve a pointer to it and update it
+		glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssboSpheres);
+		sphereBuffer = (sphere_s*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sphereBufferLen, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 		rayTracer->getWorld()->genSphereBuffer(sphereBuffer, rayTracer->getWorld()->getSpheres()->size() * sizeof(sphere_s));
-		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, rayTracer->getWorld()->getSpheres()->size() * sizeof(sphere_s), sphereBuffer);
-		//rayTracer->getWorld()->genLightBuffer(lightBuffer, rayTracer->getWorld()->getLights()->size() * sizeof(light_s));
+		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+		// update the light buffer
+		glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssboLights);
+		lightBuffer = (light_s*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, lightBufferLen, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+		rayTracer->getWorld()->genLightBuffer(lightBuffer, rayTracer->getWorld()->getLights()->size() * sizeof(light_s));
+		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
 		//rayTracer->genEyeRaysBuffer(primaryRayBuffer, primaryRayBufferLen, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
 
